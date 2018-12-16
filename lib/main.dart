@@ -1,130 +1,144 @@
 import 'package:flutter/material.dart';
-import 'package:english_words/english_words.dart';
 
-void main() => runApp(new MyApp());
+const String _name = "hekaiyou";
 
-class RandomWordsState extends State<RandomWords> {
-  final _suggestions = <WordPair>[];
-  final _biggerFont = const TextStyle(fontSize: 18.0);
-  final _saved = new Set<WordPair>();
+void main() {
+  runApp(new TalkcasuallyApp());
+}
 
-  void _pushSaved() {
-    Navigator.of(context).push(
-      new MaterialPageRoute(
-        builder: (context) {
-          final tiles = _saved.map(
-            (pair) {
-              return new ListTile(
-                title: new Text(
-                  pair.asPascalCase,
-                  style: _biggerFont,
-                ),
-              );
-            },
-          );
+class TalkcasuallyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+  return new MaterialApp(
+    title: '谈天说地',
+    home: new ChatScreen(),
+  );}
+}
 
-          final divided = ListTile.divideTiles(
-            context: context,
-            tiles: tiles,
-          ).toList();
+class ChatMessage extends StatelessWidget {
+  ChatMessage({this.text, this.animationController});
+  final String text;
+  final AnimationController animationController;
 
-          return new Scaffold(
-            appBar: new AppBar(
-              title: new Text('Saved Suggestions'),
+  @override
+  Widget build(BuildContext context) {
+    return new SizeTransition(
+      sizeFactor: new CurvedAnimation(
+        parent: animationController,
+        curve: Curves.easeInOut,
+      ),
+      axisAlignment: 0.0,
+      child: Container(
+      margin: const EdgeInsets.symmetric(vertical: 10.0),
+      child: new Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          new Container(
+            margin: const EdgeInsets.only(right: 16.0),
+            child: new CircleAvatar(child: new Text(_name[0])),
+          ),
+          new Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              new Text(_name, style: Theme.of(context).textTheme.subhead),
+              new Container(
+                margin: const EdgeInsets.only(top: 5.0),
+                child: new Text(text),
+              )
+            ],
+          )
+        ],),
+      ),
+    );
+  }
+}
+
+class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
+  final TextEditingController _textController = new TextEditingController();
+  final List<ChatMessage> _messages = <ChatMessage>[];
+
+  @override
+  void dispose() {
+    for(ChatMessage message in _messages) {
+      message.animationController.dispose();
+    }
+    super.dispose();
+  }
+
+  void _handleSubmitted(String str) {
+    _textController.clear();
+    ChatMessage message = new ChatMessage(
+      text: str,
+      animationController: new AnimationController(
+        duration: new Duration(milliseconds: 700),
+        vsync: this
+      ),
+    );
+    setState((){
+      _messages.insert(0, message);
+    });
+
+    message.animationController.forward();
+  }
+
+  Widget _buildTextComposer() {
+    //  return new IconTheme(
+    //    data: new IconThemeData(color: Theme.of(context).accentColor),
+      return new Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: new Row(
+          children: <Widget>[
+            new Flexible(
+              child: new TextField(
+                controller: _textController,
+                onSubmitted: _handleSubmitted,
+                decoration: new InputDecoration.collapsed(hintText: '发送消息'),
+              )
             ),
-            body: new ListView(children: divided),
-          );
-        },
-      ),
-    );
+
+            new Container(
+              margin: new EdgeInsets.symmetric(horizontal: 4.0),
+              child: new IconButton(
+                icon: new Icon(Icons.send),
+                onPressed: () => _handleSubmitted(_textController.text),
+              ),
+            )
+          ],
+        ) 
+      );
+    //  );
   }
 
-  @override
   Widget build(BuildContext context) {
-    // final wordPair = new WordPair.random();
-    // return new Text(wordPair.asPascalCase);
-    return new Scaffold (
+    return new Scaffold(
       appBar: new AppBar(
-        title: new Text('Startup Name Generator'),
-        actions: <Widget>[
-          new IconButton(icon: new Icon(Icons.list), onPressed: _pushSaved),
+        title: new Text('谈天说地'),
+      ),
+      // body: _buildTextComposer(),
+      body: new Column(
+        children: <Widget>[
+          new Flexible(
+            child: new ListView.builder(
+              padding: new EdgeInsets.all(8.0),
+              reverse: true,
+              itemBuilder: (_, int index) => _messages[index],
+              itemCount: _messages.length,
+            ),
+          ),
+          new Divider(height: 1.0,),
+          new Container(
+            decoration: new BoxDecoration(
+              color: Theme.of(context).cardColor
+            ),
+            child: _buildTextComposer(),
+          )
         ],
-      ),
-      body: _buildSuggestions(),
-    );
-  }
-
-  Widget _buildRow(WordPair pair) {
-    final alreadySaved = _saved.contains(pair);
-    
-    return new ListTile(
-      title: new Text(
-        pair.asPascalCase,
-        style: _biggerFont,
-      ),
-      trailing: new Icon(
-        alreadySaved ? Icons.favorite : Icons.favorite_border,
-        color: alreadySaved ? Colors.red : null,
-      ),
-      onTap: () {
-        setState(() {
-          if (alreadySaved) {
-            _saved.remove(pair);
-          } else {
-            _saved.add(pair);
-          }
-        });
-      },
-    );
-  }
-
-  Widget _buildSuggestions() {
-    return new ListView.builder(
-      padding: const EdgeInsets.all(16.0),
-      // 对于每个建议的单词对都会调用一次itemBuilder，然后将单词对添加到ListTile行中
-      // 在偶数行，该函数会为单词对添加一个ListTile row.
-      // 在奇数行，该行书湖添加一个分割线widget，来分隔相邻的词对。
-      // 注意，在小屏幕上，分割线看起来可能比较吃力。
-      itemBuilder: (context, i) {
-        // 在每一列之前，添加一个1像素高的分隔线widget
-        if (i.isOdd) return new Divider();
-
-        // 语法 "i ~/ 2" 表示i除以2，但返回值是整形（向下取整），比如i为：1, 2, 3, 4, 5
-        // 时，结果为0, 1, 1, 2, 2， 这可以计算出ListView中减去分隔线后的实际单词对数量
-        final index = i ~/ 2;
-        // 如果是建议列表中最后一个单词对
-        if (index >= _suggestions.length) {
-          // ...接着再生成10个单词对，然后添加到建议列表
-          _suggestions.addAll(generateWordPairs().take(10));
-        }
-        return _buildRow(_suggestions[index]);
-      }
+      )
     );
   }
 }
 
-class RandomWords extends StatefulWidget {
+class ChatScreen extends StatefulWidget {
   @override
-  createState() => new RandomWordsState();
+  State createState() => new ChatScreenState();
 }
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return new MaterialApp(
-      title: 'Welcome to Flutter',
-      theme: new ThemeData(
-        primaryColor: Colors.green,
-      ),
-      home: new Scaffold(
-        // appBar: new AppBar(
-        //   title: new Text('Welcome to Flutter'),
-        // ),
-        body: new Center(
-          child: new RandomWords(),
-        ),
-      ),
-    );
-  }
-}
-
